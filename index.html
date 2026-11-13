@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#09090b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Slipwise">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Slipwise Betting Assistant</title>
@@ -1639,6 +1644,15 @@ html.calm *, html.calm *::before, html.calm *::after { animation: none !importan
 @container main (min-width: 881px) and (max-width: 1080px) { .plan-per { min-height: 0; } }
 @container main (max-width: 720px) { .plan-grid { grid-template-columns: minmax(0, 1fr); max-width: 560px; } }
 </style>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(() => console.log("Slipwise app registered!"))
+      .catch(error => console.error("Service worker error:", error));
+  });
+}
+</script>
 </head>
 <body>
 <div class="app">
