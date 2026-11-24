@@ -1788,6 +1788,18 @@ html.calm *, html.calm *::before, html.calm *::after { animation: none !importan
 .toast-go { appearance: none; border: 1px solid var(--line-2); background: none; color: var(--accent); font: 700 13px/1 var(--body); padding: 8px 11px; border-radius: 9px; cursor: pointer; white-space: nowrap; flex: none; }
 .toast-go:hover { border-color: var(--accent); }
 .tn-g.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* ---------- v16: voice updates ---------- */
+.pv { margin-top: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.pv.on { border-color: color-mix(in oklab, var(--accent), transparent 45%); }
+.pv-top { display: flex; align-items: center; justify-content: space-between; gap: 12px 18px; flex-wrap: wrap; }
+.pv-top > div { flex: 1 1 280px; min-width: 0; }
+.pv-top b { font-size: 15.5px; }
+.pv-top .hint { margin: 4px 0 0; max-width: 78ch; }
+.pv-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pv-row .lbl { margin-right: 2px; }
+.pk-vox { appearance: none; flex: none; border: 1px solid var(--line-2); background: none; color: var(--muted); font: 600 12px/1 var(--body); padding: 7px 9px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+.pk-vox.on { color: var(--accent); border-color: color-mix(in oklab, var(--accent), transparent 50%); }
 </style>
 </head>
 <body>
@@ -2272,7 +2284,7 @@ let sport = 'nba';
 const isSport = x => typeof x === 'string' && Object.prototype.hasOwnProperty.call(SPORTS, x); // saved text is only trusted when it names a real sport (a word like "toString" must not pass)
 try { const z = localStorage.getItem('sw-sport'); if (isSport(z)) sport = z; } catch (e) { /* storage unavailable */ }
 /* ---------- v13.1: settings, kept on this device in one place ---------- */
-const APP_V = '15.1';
+const APP_V = '16.0';
 const SET_DEF = { calm: false, startSport: 'last', startView: 'home', hide: [], stake: 25, unit: 0, cap: 0, refresh: 'fast', lines: true, recent: true, brk: 0 };
 const SET_VIEWS = [['home', 'Home'], ['today', 'Games'], ['explorer', 'Prop Explorer'], ['insights', 'Insights'], ['picks', 'Pick Tracker']];
 const SET = Object.assign({}, SET_DEF, { hide: [] });
@@ -2527,7 +2539,7 @@ function pickLeg(l) {
   if (!l || typeof l !== 'object') return null; const o = { label: str(l.label, 160).trim() }; if (!o.label) return null;
   for (const k of ['player', 'stat', 'side', 'team', 'opp', 'game', 'kick', 'aid', 'key', 'd0']) if (typeof l[k] === 'string' && l[k]) o[k] = l[k].slice(0, 200);
   for (const k of ['line', 'val']) if (typeof l[k] === 'number' && isFinite(l[k])) o[k] = l[k];
-  if (isSport(l.sp)) o.sp = l.sp; if (typeof l.res === 'string' && /^[WLPV]$/.test(l.res)) o.res = l.res; if (l.man === true) o.man = true; if (l.late === true) o.late = true;
+  if (isSport(l.sp)) o.sp = l.sp; if (typeof l.res === 'string' && /^[WLPV]$/.test(l.res)) o.res = l.res; if (l.man === true) o.man = true; if (l.late === true) o.late = true; if (l.quiet === true) o.quiet = true;
   return o;
 }
 let PICKS = [];
@@ -2616,6 +2628,7 @@ function renderPicks() {
           lv.live ? h('div', { class: 'live-pill' }, h('i', { class: 'dot', 'aria-hidden': 'true' }), 'LIVE', lv.clock ? ' · ' : null, lv.clock ? h('b', { 'data-ck': lv.gid, text: lv.clock }) : null) : null),
         lv.pct != null ? h('div', { class: 'pk-lv-bar', role: 'img', 'aria-label': `${lv.v} against a line of ${l.line}` }, h('i', { style: `width:${lv.pct}%` })) : null,
         lv.tip ? h('div', { class: 'pk-lv-tip', text: lv.tip }) : null) : h('span', { text: l.res ? resLbl[l.res] + (l.val != null ? ` · finished with ${l.val}${l.stat ? ' ' + statUnit(l.val, l.stat) : ''}` : '') + (l.man ? ' · marked by you' : '') + (l.res === 'V' ? ' · did not play, or the game was not played' : '') : (auto ? (can ? ((g => !!g && g.status === 'live' && document.documentElement.hasAttribute('data-standalone'))(legGame(k, l)) ? 'The game is on. Getting the number so far…' : 'Waiting for the final numbers') : `Game starts ${when}`) : 'Mark it yourself once it is settled') }))),
+      PV.on && !l.res && auto ? h('button', { type: 'button', class: 'pk-vox' + (l.quiet ? '' : ' on'), 'aria-pressed': String(!l.quiet), title: l.quiet ? 'Muted. Tap to hear this player' : 'You will hear this player. Tap to mute', onclick: () => { if (l.quiet) delete l.quiet; else l.quiet = true; picksSave(); renderPicks(); pvScan(); } }, l.quiet ? 'Muted' : 'Voice on') : null,
       (!l.res || l.man) && can ? h('span', { class: 'pk-man' }, [['W', 'Won'], ['L', 'Lost']].map(([r, t]) => h('button', { type: 'button', class: 'btn-ghost sm' + (l.res === r ? ' on' : ''), 'aria-pressed': String(l.res === r), title: `Mark this leg as ${t.toLowerCase()}`, onclick: () => mark(r) }, t))) : null); };
   const card = k => { const r = pickRes(k), n = k.legs.length, pay = k.stake && k.dec ? k.stake * k.dec : null, clean = k.legs.every(l => l.res === 'W');
     return h('div', { class: 'card pkc' + (r ? ' r-' + r : '') },
@@ -2627,12 +2640,90 @@ function renderPicks() {
     h('p', { class: 'sub', text: 'Save a pick or a parlay and it is graded here from the box score numbers after the game.' + (document.documentElement.hasAttribute('data-standalone') ? ' While a game is on, a basketball or football pick shows the player\'s exact number so far and what he still needs.' : '') + ' Nothing is bet for you: this only keeps score.' }),
     h('div', { class: 'hl-tiles pk-tiles' }, tile('Record', `${S.w}-${S.n - S.w}`, S.n ? 'settled picks and parlays' : 'nothing settled yet'), tile('Accuracy', S.n ? Math.round(S.w / S.n * 100) + '%' : '—', 'of settled picks won', !S.n ? '' : (S.w / S.n >= .55 ? 'good' : (S.w / S.n < .45 ? 'bad' : 'warn'))), tile('Legs hit', S.legs ? `${S.lw}/${S.legs}` : '—', S.legs ? Math.round(S.lw / S.legs * 100) + '% of single legs' : 'single legs'), tile('Pending', String(S.pend), 'waiting for a game'), S.net != null ? tile('Net', (S.net > 0 ? '+' : '') + cash(S.net), 'on picks saved with a stake', S.net > 0 ? 'good' : (S.net < 0 ? 'bad' : '')) : null),
     h('div', { class: 'row', style: 'margin:16px 0 0' }, h('a', Object.assign({ class: 'btn' }, navLink('explorer')), 'Find a prop'), h('a', { class: 'btn-ghost', href: '#slip-check' }, 'Parlay Builder'), PICKS.some(k => !pickRes(k)) ? h('button', { class: 'btn-ghost', type: 'button', onclick: () => { toast('Checking the game logs…'); gradePicks(true); } }, 'Check results now') : null),
+    pvCard(),
     PICKS.length ? h('div', { class: 'pk-list' }, PICKS.map(card)) : h('div', { style: 'margin-top:16px' }, emptyBox('No saved picks yet. Open a prop and tap Track pick, or build a parlay and save it.')),
     h('p', { class: 'rg view-foot' }, 'Information only, not betting advice. 21+ where legal. Gambling problem? Call or text ', h('b', { text: '1-800-GAMBLER' }), '.'));
 }
 window.addEventListener('hashchange', () => { if (location.hash === '#picks') { renderPicks(); gradePicks(false); } else if (location.hash === '#slip-check') renderSlipResult(); });
 setInterval(() => { if (PICKS.some(k => !pickRes(k))) gradePicks(false); }, 3e5);
 setTimeout(() => { renderPicks(); gradePicks(false); }, 5000);
+
+/* ---------- v16: voice updates for tracked picks ---------- */
+// With an earbud in and the page left open, the device's own voice reads out a tracked player's number as it moves: "Patrick Mahomes, 175 passing yards. Needs 68 more."
+// It also says when a pick goes over its line, the score when it changes, and the final. Each pick has its own speaker button, so only the players chosen are read out.
+// It needs the live feed, so it is part of the web file only. Browsers will not speak until the page has been tapped once, so after a reload the first tap brings it back.
+const PV = { on: false, mode: 'all', score: true, seen: {}, sc: {}, st: {}, utt: [], lock: null, wait: false };
+try { const z = JSON.parse(localStorage.getItem('sw-voice') || 'null'); if (z && typeof z === 'object') { PV.on = z.on === true; if (/^(all|five|big)$/.test(z.mode)) PV.mode = z.mode; PV.score = z.score !== false; PV.wait = PV.on; } } catch (e) { /* off */ }
+const pvCan = () => !!(window.speechSynthesis && window.SpeechSynthesisUtterance) && document.documentElement.hasAttribute('data-standalone');
+function pvSave() { try { localStorage.setItem('sw-voice', JSON.stringify({ on: PV.on, mode: PV.mode, score: PV.score })); } catch (e) { /* this visit only */ } }
+function pvSay(txt) {
+  if (!txt || !gsCanSay()) return;
+  try {
+    const ss = window.speechSynthesis; if (ss.paused) ss.resume();
+    const u = new SpeechSynthesisUtterance(txt), v = gsVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+    u.rate = 1; u.pitch = 1; u.volume = 1;
+    PV.utt.push(u); if (PV.utt.length > 12) PV.utt.shift(); // kept, so the browser cannot drop one halfway through
+    u.onend = () => { const k = PV.utt.indexOf(u); if (k >= 0) PV.utt.splice(k, 1); };
+    u.onerror = e => { const k = PV.utt.indexOf(u); if (k >= 0) PV.utt.splice(k, 1); if (e && e.error === 'not-allowed' && !PV.wait) { PV.wait = true; if (location.hash === '#picks') renderPicks(); } };
+    ss.speak(u);
+  } catch (e) { /* no voice on this device */ }
+}
+// A phone stops a page when its screen goes dark, so the screen is kept awake while voice is on.
+async function pvLock() {
+  try {
+    if (PV.on && !document.hidden && navigator.wakeLock && !PV.lock) { const L = PV.lock = await navigator.wakeLock.request('screen'); L.addEventListener('release', () => { if (PV.lock === L) PV.lock = null; }); }
+    else if (!PV.on && PV.lock) { const L = PV.lock; PV.lock = null; await L.release(); }
+  } catch (e) { PV.lock = null; }
+}
+function pvSet(on) {
+  PV.on = !!on && pvCan(); PV.wait = false; PV.seen = {}; PV.sc = {}; PV.st = {}; pvSave(); pvLock();
+  try { window.speechSynthesis.cancel(); } catch (e) { /* nothing was being said */ }
+  PV.utt.length = 0;
+  if (PV.on) { const n = pvLegs().length; pvSay(n ? `Voice updates are on for ${n} pick${n === 1 ? '' : 's'}.` : 'Voice updates are on. Track a pick and I will read it out.'); setTimeout(() => { boxPoll('nav'); pvScan(); }, 400); }
+  if (location.hash === '#picks') renderPicks();
+}
+// The picks that can be read out: still open, tied to a player and a line, and not muted.
+function pvLegs() { const out = []; for (const k of PICKS) k.legs.forEach((l, i) => { if (!l.quiet && l.stat && l.line != null && l.player && (!l.res || (k.id + ':' + i) in PV.seen)) out.push([k, l, k.id + ':' + i]); }); return out; }
+function pvScan() {
+  if (!PV.on || PV.wait || !pvCan()) return;
+  const games = new Map(), now = Date.now();
+  for (const [k, l, key] of pvLegs()) {
+    const g = legGame(k, l); if (!g) continue; games.set(g.id, g);
+    const x = g.status === 'live' || g.status === 'final' ? sfCalc(g, l.player, l.aid, l.stat, l.line, l.side) : null; if (!x || x.dnp) continue;
+    const prev = PV.seen[key], side = l.side === 'under' ? 'under' : 'over', num = `${x.v} ${x.unit}`;
+    if (!x.live) { // the final whistle: said once, and only for a pick that was being followed
+      if (prev && !prev.fin) { prev.fin = true; pvSay(`Final. ${l.player} finished with ${num}. ` + (x.push ? `Right on ${l.line}. That is a push.` : `Your ${side} ${l.line} ${x.won ? 'won' : 'lost'}.`)); }
+      else if (!prev) PV.seen[key] = { v: x.v, fin: true, said: now };
+      continue;
+    }
+    const room = Math.ceil(l.line) - 1 - x.v, left = side === 'over' ? (x.won ? '' : `Needs ${x.need} more.`) : (x.lost ? '' : (room > 0 ? `Room for ${room} more.` : 'One more goes over.'));
+    if (!prev) { PV.seen[key] = { v: x.v, won: x.won, lost: x.lost, said: now }; pvSay(`${l.player}: ${x.r.none ? 'nothing yet' : num + ' so far'}. ` + (x.won ? `Already over ${l.line}.` : (x.lost ? `Already over ${l.line}, so the under has lost.` : left))); continue; }
+    if (prev.fin || x.v === prev.v) continue;
+    const crossed = (x.won && !prev.won) || (x.lost && !prev.lost), q = v => Math.floor(4 * v / Math.max(l.line, .5));
+    const done = (prev.won && x.won) || (prev.lost && x.lost); // already decided: from here one update every five minutes is plenty, and none on Big moments
+    if (!(crossed || (done ? PV.mode !== 'big' && now - prev.said >= 3e5 : (PV.mode === 'all' || (PV.mode === 'five' && now - prev.said >= 3e5) || (PV.mode === 'big' && q(x.v) > q(prev.v)))))) { prev.won = x.won; prev.lost = x.lost; continue; } // not said this time: the last number said stays the one to compare with
+    Object.assign(prev, { v: x.v, won: x.won, lost: x.lost, said: now });
+    pvSay(crossed ? `${l.player} has ${num}. That is over ${l.line}` + (x.won ? '. Your pick has hit.' : ', so your under has lost.') : `${l.player}, ${num}. ${left}`.trim());
+  }
+  // the games those picks are in: the start, each change of score, and the final score
+  for (const g of games.values()) {
+    const was = PV.st[g.id], sc = g.score && g.score.away != null && g.score.home != null ? `${nick(g.away)} ${g.score.away}, ${nick(g.home)} ${g.score.home}` : '';
+    if (was === 'scheduled' && g.status === 'live') pvSay(`${nick(g.away)} at ${nick(g.home)} is under way.`);
+    if (PV.score && sc && g.status !== 'scheduled') { if (was === 'live' && g.status === 'final') pvSay(`Final score. ${sc}.`); else if (g.status === 'live' && PV.sc[g.id] && PV.sc[g.id] !== sc) pvSay(`Score. ${sc}.`); }
+    PV.st[g.id] = g.status; if (sc) PV.sc[g.id] = sc;
+  }
+}
+// The voice card on the Pick Tracker.
+function pvCard() {
+  if (!pvCan()) return null;
+  const seg = (val, lbl, tip) => h('button', { type: 'button', class: 'fchip', 'aria-pressed': String(PV.mode === val), title: tip, onclick: () => { PV.mode = val; pvSave(); renderPicks(); } }, lbl);
+  return h('div', { class: 'card pv' + (PV.on ? ' on' : '') },
+    h('div', { class: 'pv-top' }, h('div', {}, h('b', { text: 'Voice updates' }), h('p', { class: 'hint', text: PV.on ? (PV.wait ? 'Tap anywhere on the page once and the voice comes back. Browsers need one tap after a page is reloaded.' : 'On. Your tracked players are read out as their numbers move. Keep this page open; the screen is kept awake so it keeps going.') : 'Put an earbud in and hear your tracked players\' numbers as they happen: "Patrick Mahomes, 175 passing yards. Needs 68 more."' })),
+      h('button', { type: 'button', class: PV.on ? 'btn' : 'btn-ghost', 'aria-pressed': String(PV.on), onclick: () => pvSet(!PV.on) }, PV.on ? 'Voice is on' : 'Turn voice on')),
+    PV.on ? h('div', { class: 'pv-row' }, h('span', { class: 'lbl', text: 'How often' }), seg('all', 'Every change', 'Each time a tracked number moves, about every 20 to 40 seconds while he is active'), seg('five', 'Every 5 minutes', 'At most one update per player every five minutes, plus the moment a pick goes over its line'), seg('big', 'Big moments', 'Only each quarter of the way to the line, the moment a pick goes over it, and the final'),
+      h('button', { type: 'button', class: 'fchip', 'aria-pressed': String(PV.score), title: 'Also say the score when it changes', onclick: () => { PV.score = !PV.score; pvSave(); renderPicks(); } }, 'Scores too'),
+      h('button', { type: 'button', class: 'btn-ghost sm', onclick: () => pvSay('This is how your updates will sound. Patrick Mahomes, 175 passing yards. Needs 68 more.') }, 'Test the voice')) : null);
+}
 
 /* ---------- v12: Parlay Builder extras: what the legs have in common, a rough chance from the hit rates, and Save ---------- */
 function slipRisks() {
@@ -4273,11 +4364,11 @@ function openHomeSetup() {
   paint('[data-hs$=":on"]');
 }
 // One short note on Home the first time a new version is opened, so the new things are easy to find.
-const NEWS_V = '15.0';
+const NEWS_V = '16.0';
 let newsSeen = ''; try { newsSeen = localStorage.getItem('sw-news') || ''; } catch (e) { /* shown again next visit */ }
 function newsNote() {
   if (newsSeen === NEWS_V || !document.documentElement.hasAttribute('data-standalone')) return null; // v14's news is about the web file's live box score
-  return h('div', { class: 'newsnote' }, h('span', { class: 'lbl', text: 'New' }), h('span', { class: 'nn-t', text: "New: real sportsbook lines. NFL and NBA player props now use DraftKings' own lines, each with a Slipwise score. A football pick you track now shows the player's exact yards so far while the game is on, and you can track a pick after kickoff. Game pages and prop Analysis start with a short summary in plain words." }),
+  return h('div', { class: 'newsnote' }, h('span', { class: 'lbl', text: 'New' }), h('span', { class: 'nn-t', text: "New: voice updates. Turn them on in the Pick Tracker, put an earbud in, and your tracked players' numbers are read out as they move, with the score and the final. Each pick has its own speaker button." }),
     h('button', { class: 'btn-ghost sm', type: 'button', onclick: () => { newsSeen = NEWS_V; try { localStorage.setItem('sw-news', NEWS_V); } catch (e) { /* this visit only */ } renderHome(); } }, 'Got it'));
 }
 // Puts the Home sections on the page in her order. Games and Best bets share a row when they sit next to each other.
@@ -4592,6 +4683,9 @@ function standalone() {
   const tick = () => { standaloneLoad('nba'); standaloneLoad('nfl'); for (const sp of LAZY_SP) if (LAZY[sp] && !(DATA[sp].state === 'off' && Date.now() - (OFF_AT[sp] || 0) < 216e5)) standaloneLoad(sp); };
   if (LAZY_SP.includes(sport)) LAZY[sport] = true; // college football, the WNBA and baseball load when their tab is first opened
   tick(); saTick = () => { tick(); setTimeout(() => { boxPoll('user'); bookWant(sport, true); }, 900); };
+  // v16: voice updates. The score and the start of a game are checked every five seconds; a saved "on" comes back at the first tap, which browsers ask for before they speak.
+  setInterval(pvScan, 5000); document.addEventListener('visibilitychange', pvLock);
+  if (PV.on) { if (!pvCan()) PV.on = false; else document.addEventListener('pointerdown', () => { if (PV.on && PV.wait) { PV.wait = false; pvLock(); pvSay('Voice updates are back on.'); setTimeout(pvScan, 300); if (location.hash === '#picks') renderPicks(); } }, { once: true }); }
   setTimeout(() => boxPoll('nav'), 2600); // v15.1: a page opened straight on the Pick Tracker or a prop gets its live numbers without waiting for the first five-second beat
   // Every 10 seconds while a game is live, otherwise once a minute. The clock itself ticks every second in between.
   let beat = 0;
@@ -5763,7 +5857,7 @@ function gsSpeak(txt, hi) {
     ss.speak(u);
   } catch (e) { /* no voice on this device */ }
 }
-function gsHush() { GS.talkUntil = 0; GS.utt.length = 0; try { if (gsCanSay()) window.speechSynthesis.cancel(); } catch (e) { /* nothing was being said */ } }
+function gsHush() { GS.talkUntil = 0; GS.utt.length = 0; if (PV.on) return; /* v16: the pick voice keeps talking when the page is in the background */ try { if (gsCanSay()) window.speechSynthesis.cancel(); } catch (e) { /* nothing was being said */ } }
 function gsTalking() { try { return GS.say && gsCanSay() && performance.now() < GS.talkUntil && (window.speechSynthesis.speaking || window.speechSynthesis.pending); } catch (e) { return false; } }
 function gsSet(k, v) {
   GS[k] = !!v; GS.asked = true; try { localStorage.setItem(k === 'on' ? 'sw-gfsnd' : 'sw-gfsay', v ? '1' : '0'); } catch (e) { /* this visit only */ }
@@ -6116,6 +6210,7 @@ function boxTake(g, j) {
   const psig = JSON.stringify([B.fin, ['away', 'home'].map(sd => (B[sd] ? B[sd].rows.filter(r => names.has(r.k)).map(r => (r.fb ? [r.k, Object.values(r.fb)] : [r.k, r.dnp, r.pts, r.reb, r.ast, r.tpm, r.stl, r.blk, r.to])) : []))]);
   if (BX.psig[g.id] !== psig) { BX.psig[g.id] = psig; BX.pv++; }
   if (B.fin && boxGrade() && location.hash === '#picks') renderPicks();
+  pvScan(); // v16: say what moved
   return changed;
 }
 async function boxLoad(sp, g) {
@@ -6126,10 +6221,12 @@ async function boxLoad(sp, g) {
 }
 // Which games need player numbers for what is on screen right now. The Live Tracker's own game arrives with its plays, so it is not asked for twice.
 function boxWant() {
-  const out = []; if (!document.documentElement.hasAttribute('data-standalone') || document.hidden) return out;
+  const out = []; if (!document.documentElement.hasAttribute('data-standalone') || (document.hidden && !PV.on)) return out;
   const v = (location.hash || '').slice(1), add = (sp, g) => { if (g && (isBB(sp) || isFB(sp)) && (g.status === 'live' || g.status === 'final') && EV[g.id] && !out.some(x => x[1] === g)) out.push([sp, g]); };
   // The games of the picks being tracked. A football summary is a big file, so a football list (Home, the Prop Explorer) only follows these, not every game on the board.
   const mine = only => { for (const k of PICKS) for (const l of k.legs) if (!l.res && (!only || (l.sp || k.sp) === only)) add(l.sp || k.sp, legGame(k, l)); };
+  if (PV.on) for (const [k, l] of pvLegs()) if (!l.res) add(l.sp || k.sp, legGame(k, l)); // v16: voice follows its picks from any tab, and with the page in the background
+  if (document.hidden) return out;
   if (v === 'picks') { mine(); return out; }
   const sl = cur().slate, fb = !!sl && isFB(sl.league); if (!sl || !(fb || isBB(sl.league))) return out;
   if (v === 'game') add(sport, sl.games.find(x => x.id === gp.id));
@@ -6143,7 +6240,7 @@ function boxWant() {
 async function boxPoll(why) {
   if (BX.busy) return;
   const want = boxWant(); if (!want.length) return;
-  const now = Date.now(), v = (location.hash || '').slice(1), one = v === 'game' || v === 'prop' || v === 'players' || v === 'live' || (v === 'picks' && want.length <= 2), mode = SET.refresh; // v15: with one or two games to follow, the Pick Tracker reads as often as a game page
+  const now = Date.now(), v = (location.hash || '').slice(1), one = v === 'game' || v === 'prop' || v === 'players' || v === 'live' || ((v === 'picks' || PV.on) && want.length <= 2), mode = SET.refresh; // v15: with one or two games to follow, the Pick Tracker reads as often as a game page
   const gap = why === 'user' ? 3000 : (mode === 'manual' ? Infinity : (why === 'nav' ? 1e4 : (one ? 2e4 : 4e4)) * (mode === 'slow' ? 3 : 1));
   const due = want.filter(([, g]) => { const B = boxOf(g), last = BX.at[g.id] || 0; if (B && B.fin) return false; return !last || (!B && mode !== 'manual' && now - last > 15000) || now - last >= gap; }).sort((a, b) => (BX.at[a[1].id] || 0) - (BX.at[b[1].id] || 0));
   if (!due.length) return;
