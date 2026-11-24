@@ -1800,6 +1800,7 @@ html.calm *, html.calm *::before, html.calm *::after { animation: none !importan
 .pv-row .lbl { margin-right: 2px; }
 .pk-vox { appearance: none; flex: none; border: 1px solid var(--line-2); background: none; color: var(--muted); font: 600 12px/1 var(--body); padding: 7px 9px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
 .pk-vox.on { color: var(--accent); border-color: color-mix(in oklab, var(--accent), transparent 50%); }
+.pv-sel { appearance: auto; max-width: min(100%, 300px); min-height: 36px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--bg-2); color: var(--ink); font: 600 13.5px/1.2 var(--body); }
 </style>
 </head>
 <body>
@@ -2284,7 +2285,7 @@ let sport = 'nba';
 const isSport = x => typeof x === 'string' && Object.prototype.hasOwnProperty.call(SPORTS, x); // saved text is only trusted when it names a real sport (a word like "toString" must not pass)
 try { const z = localStorage.getItem('sw-sport'); if (isSport(z)) sport = z; } catch (e) { /* storage unavailable */ }
 /* ---------- v13.1: settings, kept on this device in one place ---------- */
-const APP_V = '16.0';
+const APP_V = '16.1';
 const SET_DEF = { calm: false, startSport: 'last', startView: 'home', hide: [], stake: 25, unit: 0, cap: 0, refresh: 'fast', lines: true, recent: true, brk: 0 };
 const SET_VIEWS = [['home', 'Home'], ['today', 'Games'], ['explorer', 'Prop Explorer'], ['insights', 'Insights'], ['picks', 'Pick Tracker']];
 const SET = Object.assign({}, SET_DEF, { hide: [] });
@@ -2652,16 +2653,22 @@ setTimeout(() => { renderPicks(); gradePicks(false); }, 5000);
 // With an earbud in and the page left open, the device's own voice reads out a tracked player's number as it moves: "Patrick Mahomes, 175 passing yards. Needs 68 more."
 // It also says when a pick goes over its line, the score when it changes, and the final. Each pick has its own speaker button, so only the players chosen are read out.
 // It needs the live feed, so it is part of the web file only. Browsers will not speak until the page has been tapped once, so after a reload the first tap brings it back.
-const PV = { on: false, mode: 'all', score: true, seen: {}, sc: {}, st: {}, utt: [], lock: null, wait: false };
-try { const z = JSON.parse(localStorage.getItem('sw-voice') || 'null'); if (z && typeof z === 'object') { PV.on = z.on === true; if (/^(all|five|big)$/.test(z.mode)) PV.mode = z.mode; PV.score = z.score !== false; PV.wait = PV.on; } } catch (e) { /* off */ }
+const PV = { on: false, mode: 'all', score: true, voice: '', rate: 1, seen: {}, sc: {}, st: {}, utt: [], lock: null, wait: false };
+try { const z = JSON.parse(localStorage.getItem('sw-voice') || 'null'); if (z && typeof z === 'object') { PV.on = z.on === true; if (/^(all|five|big)$/.test(z.mode)) PV.mode = z.mode; PV.score = z.score !== false; PV.wait = PV.on; PV.voice = str(z.voice, 80); if (z.rate === .85 || z.rate === 1.2) PV.rate = z.rate; } } catch (e) { /* off */ }
 const pvCan = () => !!(window.speechSynthesis && window.SpeechSynthesisUtterance) && document.documentElement.hasAttribute('data-standalone');
-function pvSave() { try { localStorage.setItem('sw-voice', JSON.stringify({ on: PV.on, mode: PV.mode, score: PV.score })); } catch (e) { /* this visit only */ } }
+function pvSave() { try { localStorage.setItem('sw-voice', JSON.stringify({ on: PV.on, mode: PV.mode, score: PV.score, voice: PV.voice, rate: PV.rate })); } catch (e) { /* this visit only */ } }
+// v16.1: the voice can be chosen. The list is the device's own English voices (every voice when it has no English one); "Automatic" lets the app pick.
+function pvVoices() { let vs = []; try { vs = window.speechSynthesis.getVoices() || []; } catch (e) { /* none */ } const en = vs.filter(v => /^en/i.test(v.lang || '')); return (en.length ? en : vs).slice(0, 80); }
+function pvVoice() { const v = PV.voice ? pvVoices().find(z => z.name === PV.voice) : null; return v || gsVoice(); }
+const PV_WHERE = { US: 'American', GB: 'British', AU: 'Australian', IN: 'Indian', IE: 'Irish', ZA: 'South African', CA: 'Canadian', NZ: 'New Zealand', NG: 'Nigerian', KE: 'Kenyan', SG: 'Singapore', PH: 'Philippine', SC: 'Scottish' };
+const pvVoiceName = v => { const n = String(v.name || '').replace(/^Microsoft\s+/i, '').replace(/\s*Online\s*\(Natural\)/i, '').replace(/\s*-\s*English.*$/i, '').replace(/^Google\s+/i, 'Google ').trim(), c = (/[-_]([A-Za-z]{2})\b/.exec(v.lang || '') || [])[1], w = c ? PV_WHERE[c.toUpperCase()] : ''; return w && !new RegExp(w.split(' ')[0], 'i').test(n) ? `${n} · ${w}` : n; };
+try { if (window.speechSynthesis && window.speechSynthesis.addEventListener) window.speechSynthesis.addEventListener('voiceschanged', () => { if (location.hash === '#picks' && PV.on && document.querySelector('#view-picks .pv') && document.activeElement !== document.querySelector('#pv-voice')) renderPicks(); }); } catch (e) { /* the list stays as it was */ }
 function pvSay(txt) {
   if (!txt || !gsCanSay()) return;
   try {
     const ss = window.speechSynthesis; if (ss.paused) ss.resume();
-    const u = new SpeechSynthesisUtterance(txt), v = gsVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
-    u.rate = 1; u.pitch = 1; u.volume = 1;
+    const u = new SpeechSynthesisUtterance(txt), v = pvVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+    u.rate = PV.rate; u.pitch = 1; u.volume = 1;
     PV.utt.push(u); if (PV.utt.length > 12) PV.utt.shift(); // kept, so the browser cannot drop one halfway through
     u.onend = () => { const k = PV.utt.indexOf(u); if (k >= 0) PV.utt.splice(k, 1); };
     u.onerror = e => { const k = PV.utt.indexOf(u); if (k >= 0) PV.utt.splice(k, 1); if (e && e.error === 'not-allowed' && !PV.wait) { PV.wait = true; if (location.hash === '#picks') renderPicks(); } };
@@ -2722,7 +2729,18 @@ function pvCard() {
       h('button', { type: 'button', class: PV.on ? 'btn' : 'btn-ghost', 'aria-pressed': String(PV.on), onclick: () => pvSet(!PV.on) }, PV.on ? 'Voice is on' : 'Turn voice on')),
     PV.on ? h('div', { class: 'pv-row' }, h('span', { class: 'lbl', text: 'How often' }), seg('all', 'Every change', 'Each time a tracked number moves, about every 20 to 40 seconds while he is active'), seg('five', 'Every 5 minutes', 'At most one update per player every five minutes, plus the moment a pick goes over its line'), seg('big', 'Big moments', 'Only each quarter of the way to the line, the moment a pick goes over it, and the final'),
       h('button', { type: 'button', class: 'fchip', 'aria-pressed': String(PV.score), title: 'Also say the score when it changes', onclick: () => { PV.score = !PV.score; pvSave(); renderPicks(); } }, 'Scores too'),
-      h('button', { type: 'button', class: 'btn-ghost sm', onclick: () => pvSay('This is how your updates will sound. Patrick Mahomes, 175 passing yards. Needs 68 more.') }, 'Test the voice')) : null);
+      h('button', { type: 'button', class: 'btn-ghost sm', onclick: () => pvSay('This is how your updates will sound. Patrick Mahomes, 175 passing yards. Needs 68 more.') }, 'Test the voice')) : null,
+    PV.on ? pvVoiceRow() : null);
+}
+// The voice and how fast it talks. Picking either one says a sample right away.
+function pvVoiceRow() {
+  const vs = pvVoices(), sample = () => { try { window.speechSynthesis.cancel(); } catch (e) { /* nothing was being said */ } PV.utt.length = 0; pvSay('This is the voice you picked. Patrick Mahomes, 175 passing yards. Needs 68 more.'); };
+  const sp = (val, lbl) => h('button', { type: 'button', class: 'fchip', 'aria-pressed': String(PV.rate === val), onclick: () => { PV.rate = val; pvSave(); renderPicks(); sample(); } }, lbl);
+  const opt = (val, lbl) => { const o = h('option', { value: val, text: lbl }); if (val === (vs.some(v => v.name === PV.voice) ? PV.voice : '')) o.selected = true; return o; };
+  return h('div', { class: 'pv-row' }, h('span', { class: 'lbl', text: 'Voice' }),
+    vs.length > 1 ? h('select', { id: 'pv-voice', class: 'pv-sel', 'aria-label': 'Voice', title: 'These are the voices on this device. A phone and a computer have different ones.', onchange: e => { PV.voice = str(e.target.value, 80); pvSave(); sample(); } }, opt('', 'Automatic'), vs.map(v => opt(v.name, pvVoiceName(v))))
+      : h('span', { class: 'hint', text: vs.length ? 'This device has one voice.' : 'This device has not listed its voices yet. Tap Test the voice, then look again.' }),
+    h('span', { class: 'lbl', style: 'margin-left:8px', text: 'Speed' }), sp(.85, 'Slower'), sp(1, 'Normal'), sp(1.2, 'Faster'));
 }
 
 /* ---------- v12: Parlay Builder extras: what the legs have in common, a rough chance from the hit rates, and Save ---------- */
